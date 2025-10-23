@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manche de Guitare & Cercle des Quintes — Version Optimisée</title>
+<style>
+  * { box-sizing: border-box; user-select: none; }
+  :root {
+    --bg: #0d0d0d;
+    --panel: #1a1a1a;
+    --panel-2: #1f1f1f;
+    --border: #333;
+    --text: #e0e0e0;
+    --muted: #aaa;
+    --accent: #ffcc66;
+    --wood-1: #2d2218;
+    --wood-2: #14100d;
+    --fret: #b48c5a;
+    --string: #d4b075;
+    --marker: #c8a364;
+    --note-bg: #e7d6b1;
+    --note-fg: #33220e;
+    --tonic-bg: #c1a665;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif;
+    margin: 0;
+    text-align: center;
+    line-height: 1.4;
+  }
+  header { padding: 20px 10px 6px; }
+  h1 { margin: 0 0 6px; font-weight: 600; color: #ddd; font-size: clamp(18px, 2.6vw, 28px); }
+  .subtle { color: #bbb; font-size: 0.95rem; }
+
+  /* Toolbar */
+  .toolbar {
+    margin: 14px auto 6px;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+  }
+  select, button {
+    background: var(--panel-2);
+    color: #ddd;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 16px;
+    min-width: 220px;
+    outline: none;
+  }
+  button { cursor: pointer; min-width: 120px; }
+  button:hover { filter: brightness(1.08); }
+  #selectedScale {
+    margin: 6px auto 2px;
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 15px;
+    max-width: 1200px;
+  }
+
+  /* Circle of fifths */
+  #cercleWrapper { display: flex; justify-content: center; margin: 18px auto; }
+  #cercle {
+    position: relative;
+    width: min(78vw, 440px);
+    height: min(78vw, 440px);
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .note {
+    position: absolute;
+    width: clamp(38px, 8vw, 58px);
+    height: clamp(38px, 8vw, 58px);
+    border-radius: 50%;
+    background: #222;
+    color: var(--muted);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform .18s ease, background .18s ease, color .18s ease;
+    padding: 4px 6px;
+    text-align: center;
+    line-height: 1.1;
+  }
+  .note small { display:block; font-weight:600; opacity:.8; font-size: .8em; }
+  .note:hover { background: #3a3a3a; transform: scale(1.06); }
+  .note.active { background: #666; color: #fafafa; transform: scale(1.08); }
+
+  /* Neck */
+  #manche {
+    position: relative;
+    margin: 24px auto 52px;
+    width: 96%;
+    max-width: 1400px;
+    height: clamp(220px, 40vw, 360px);
+    background: var(--wood-1);
+    border-radius: 12px;
+    box-shadow: inset 0 0 14px var(--wood-2);
+    overflow: hidden;
+  }
+  .fret {
+    position: absolute; top: 0; bottom: 0;
+    width: 1.6px; background: var(--fret);
+  }
+  .string {
+    position: absolute; left: 0; right: 0;
+    height: 2px; background: var(--string);
+  }
+  .dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%; background: var(--marker);
+    left: 50%; transform: translateX(-50%); top: 50%;
+  }
+  .dot.double::after {
+    content: ""; position: absolute; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--marker); top: -18px; left: 0;
+  }
+  .fretNumber {
+    position: absolute; bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px; color: #b8905b; background: rgba(0,0,0,.25);
+    padding: 2px 5px; border-radius: 6px;
+  }
+  .noteManche {
+    position: absolute; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--note-bg); color: var(--note-fg); font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    transform: translate(-50%, -50%);
+    opacity: 0; animation: fadeIn .45s forwards;
+  }
+  .noteManche.tonic { background: var(--tonic-bg); }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  footer { color:#888; font-size: 12px; margin: 6px 0 18px; }
+  @media (max-width: 600px) {
+    select, button { min-width: 160px; font-size: 15px; padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Cercle des quintes & manche de guitare</h1>
+    <div class="subtle">Clique sur les notes du cercle pour filtrer. Choisis ensuite une gamme/mode dans la liste.</div>
+  </header>
+
+  <div id="cercleWrapper">
+    <div id="cercle" aria-label="Cercle des quintes"></div>
+  </div>
+
+  <div class="toolbar">
+    <select id="menuGammes" aria-label="Choix de gamme">
+      <option>(aucune sélection)</option>
+    </select>
+    <button id="resetBtn" title="Réinitialiser la sélection">Reset</button>
+  </div>
+  <div id="selectedScale" aria-live="polite"></div>
+
+  <div id="manche" aria-label="Manche de guitare"></div>
+
+  <footer>v2 — optimisation ergonomie, corrections d’altérations, sauvegarde locale</footer>
+
+<script>
+'use strict';
+
+/* ========================
+   Helpers & Data
+======================== */
+const SHARP_CHROMA = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT_TO_SHARP = {
+  'Cb':'B', 'Fb':'E', 'E#':'F', 'B#':'C',
+  'Bb':'A#', 'Eb':'D#', 'Ab':'G#', 'Db':'C#', 'Gb':'F#'
+};
+
+function toSharp(n){ return FLAT_TO_SHARP[n] || n; }
+function eqNote(a,b){ return toSharp(a) === toSharp(b); }
+function normalizeScaleToSharp(scale){ return scale.map(toSharp); }
+
+/* Preferred labels around the circle (showing enharmonics where useful) */
+const circleLabels = [
+  {label:'C', pitch:'C'},
+  {label:'G', pitch:'G'},
+  {label:'D', pitch:'D'},
+  {label:'A', pitch:'A'},
+  {label:'E', pitch:'E'},
+  {label:'B', pitch:'B'},
+  {label:'F#/Gb', pitch:'F#'},
+  {label:'C#/Db', pitch:'C#'},
+  {label:'G#/Ab', pitch:'G#'},
+  {label:'D#/Eb', pitch:'D#'},
+  {label:'A#/Bb', pitch:'A#'},
+  {label:'F', pitch:'F'}
+];
+
+/* Modes & Types (affichés, mais le moteur vérifie juste l’inclusion des notes) */
+const modes = ['Ionian','Dorian','Phrygian','Lydian','Mixolydian','Aeolian','Locrian'];
+const scaleTypes = ['Major','Natural Minor','Major Pentatonic','Minor Pentatonic','Blues'];
+
+/* Gammes majeures standard (avec noms usuels en bémols côté bémols) */
+const gammes = {
+  'C':  ['C','D','E','F','G','A','B'],
+  'G':  ['G','A','B','C','D','E','F#'],
+  'D':  ['D','E','F#','G','A','B','C#'],
+  'A':  ['A','B','C#','D','E','F#','G#'],
+  'E':  ['E','F#','G#','A','B','C#','D#'],
+  'B':  ['B','C#','D#','E','F#','G#','A#'],
+  'F#': ['F#','G#','A#','B','C#','D#','E#'],
+  'C#': ['C#','D#','E#','F#','G#','A#','B#'], /* théorique */
+  'F':  ['F','G','A','Bb','C','D','E'],
+  'Bb': ['Bb','C','D','Eb','F','G','A'],
+  'Eb': ['Eb','F','G','Ab','Bb','C','D'],
+  'Ab': ['Ab','Bb','C','Db','Eb','F','G'],
+  'Db': ['Db','Eb','F','Gb','Ab','Bb','C'],
+  'Gb': ['Gb','Ab','Bb','Cb','Db','Eb','F'] /* théorique */
+};
+
+/* ========================
+   Build Circle (interactive)
+======================== */
+const cercle = document.getElementById('cercle');
+const RADIUS_PAD = 0.5; /* helps center after responsive scaling */
+
+circleLabels.forEach((obj, i) => {
+  const el = document.createElement('div');
+  el.className = 'note';
+  // Two-line label if it includes slash
+  if (obj.label.includes('/')) {
+    const [a,b] = obj.label.split('/');
+    el.innerHTML = `${a}<small>${b}</small>`;
+  } else {
+    el.textContent = obj.label;
+  }
+  el.dataset.pitch = obj.pitch; // canonical (sharp) for logic
+
+  const size = cercle.getBoundingClientRect();
+  const w = size.width || 440;
+  const h = size.height || 440;
+  const cx = w/2, cy = h/2;
+  const angle = (i * (2*Math.PI) / circleLabels.length) - Math.PI/2;
+  const radius = Math.min(w,h) * 0.36;
+  el.style.left = `${cx + Math.cos(angle)*radius - (w*0.065)}px`;
+  el.style.top  = `${cy + Math.sin(angle)*radius - (h*0.065)}px`;
+
+  el.addEventListener('click', () => {
+    el.classList.toggle('active');
+    updateGammes();
+  });
+  cercle.appendChild(el);
+});
+
+/* recompute positions on resize for perfect centering */
+window.addEventListener('resize', () => {
+  const nodes = [...document.querySelectorAll('.note')];
+  const size = cercle.getBoundingClientRect();
+  const w = size.width, h = size.height;
+  const cx = w/2, cy = h/2;
+  nodes.forEach((el, i) => {
+    const angle = (i * (2*Math.PI) / nodes.length) - Math.PI/2;
+    const radius = Math.min(w,h) * 0.36;
+    const box = Math.min(w,h) * 0.13;
+    el.style.left = `${cx + Math.cos(angle)*radius - (box/2)}px`;
+    el.style.top  = `${cy + Math.sin(angle)*radius - (box/2)}px`;
+  });
+});
+
+/* ========================
+   Menu generation & updates
+======================== */
+const menu = document.getElementById('menuGammes');
+const selectedScaleDiv = document.getElementById('selectedScale');
+
+function updateGammes() {
+  const active = Array.from(document.querySelectorAll('.note.active'))
+    .map(el => el.dataset.pitch); // canonical sharp
+
+  menu.innerHTML = '';
+  if (!active.length) {
+    menu.innerHTML = '<option>(aucune sélection)</option>';
+    displayScale([]);
+    return;
+  }
+
+  let found = [];
+  for (const [tonic, scale] of Object.entries(gammes)) {
+    const scaleSharp = normalizeScaleToSharp(scale);
+    const ok = active.every(n => scaleSharp.includes(n));
+    if (ok) {
+      modes.forEach(m => found.push(`${tonic} – ${m}`));
+      scaleTypes.forEach(s => found.push(`${tonic} – ${s}`));
+    }
+  }
+  if (!found.length) found = ['(aucune gamme trouvée)'];
+
+  for (const name of found) {
+    const opt = document.createElement('option');
+    opt.textContent = name;
+    menu.appendChild(opt);
+  }
+  menu.selectedIndex = 0;
+  displayScale(parseScale(found[0]));
+
+  // Persist active selection for comfort
+  localStorage.setItem('activeCircle', JSON.stringify(active));
+}
+
+menu.addEventListener('change', () => {
+  displayScale(parseScale(menu.value));
+  localStorage.setItem('lastScale', menu.value);
+});
+
+function parseScale(value) {
+  const tonic = value.split(' – ')[0];
+  const sc = gammes[tonic] || [];
+  return normalizeScaleToSharp(sc);
+}
+
+/* ========================
+   Guitar Neck
+======================== */
+const manche = document.getElementById('manche');
+const tuning = ['E','A','D','G','B','E'];
+const frets = 24;
+const dots = [3,5,7,9,12,15,17,19,21,24];
+
+function addFret(num) {
+  const el = document.createElement('div');
+  el.className = 'fret';
+  el.style.left = (num * (100 / frets)) + '%';
+  manche.appendChild(el);
+  if (dots.includes(num)) {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.style.left = ((num - 0.5) * (100 / frets)) + '%';
+    dot.style.top = '50%';
+    if (num === 12 || num === 24) dot.classList.add('double');
+    manche.appendChild(dot);
+    const numLabel = document.createElement('div');
+    numLabel.className = 'fretNumber';
+    numLabel.textContent = num;
+    numLabel.style.left = ((num - 0.5) * (100 / frets)) + '%';
+    manche.appendChild(numLabel);
+  }
+}
+function addStrings() {
+  tuning.forEach((_, i) => {
+    const s = document.createElement('div');
+    s.className = 'string';
+    const spacing = (manche.getBoundingClientRect().height) / (tuning.length + 1);
+    s.style.top = ((i + 1) * spacing) + 'px';
+    manche.appendChild(s);
+  });
+}
+for (let i = 0; i <= frets; i++) addFret(i);
+addStrings();
+
+/* ========================
+   Display scale on neck
+======================== */
+let noteEls = [];
+function displayScale(scaleSharp) {
+  // UI header
+  const human = humanizeSelected(menu.value, scaleSharp);
+  selectedScaleDiv.textContent = human;
+
+  // Clear
+  noteEls.forEach(n => n.remove());
+  noteEls = [];
+  if (!scaleSharp.length) return;
+
+  const fretWidth = 100 / frets;
+  const h = manche.getBoundingClientRect().height;
+  const spacing = h / (tuning.length + 1);
+
+  tuning.forEach((tune, s) => {
+    const openIndex = SHARP_CHROMA.indexOf(tune);
+    for (let f = 0; f <= frets; f++) {
+      const note = SHARP_CHROMA[(openIndex + f) % 12];
+      if (scaleSharp.includes(note)) {
+        const el = document.createElement('div');
+        el.className = 'noteManche';
+        el.textContent = note;
+        el.style.left = `${(f * fretWidth) + fretWidth / 2}%`;
+        el.style.top = `${(s + 1) * spacing}px`;
+        if (note === scaleSharp[0]) el.classList.add('tonic');
+        manche.appendChild(el);
+        noteEls.push(el);
+      }
+    }
+  });
+}
+
+/* Human readable headline */
+function humanizeSelected(label, scaleSharp){
+  if (!label || !label.includes('–') || !scaleSharp.length) return '';
+  const [tonic, kind] = label.split(' – ');
+  // Try to show tonic as provided (may include flats) if exists
+  const prettyTonic = tonic;
+  return `${prettyTonic} — ${kind} • Notes : ${scaleSharp.join('  ')}`;
+}
+
+/* Reset selection button */
+document.getElementById('resetBtn').addEventListener('click', () => {
+  document.querySelectorAll('.note.active').forEach(n => n.classList.remove('active'));
+  localStorage.removeItem('activeCircle');
+  localStorage.removeItem('lastScale');
+  menu.innerHTML = '<option>(aucune sélection)</option>';
+  displayScale([]);
+});
+
+/* Restore last selection (if any) */
+(function restore(){
+  try {
+    const active = JSON.parse(localStorage.getItem('activeCircle') || '[]');
+    if (active.length) {
+      // Activate matching buttons by pitch
+      document.querySelectorAll('.note').forEach(el => {
+        if (active.includes(el.dataset.pitch)) el.classList.add('active');
+      });
+      updateGammes();
+    }
+    const saved = localStorage.getItem('lastScale');
+    if (saved) {
+      [...menu.options].forEach((o,i) => { if (o.textContent === saved) menu.selectedIndex = i; });
+      displayScale(parseScale(menu.value));
+    }
+  } catch {}
+})();
+</script>
+</body>
+</html>
