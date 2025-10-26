@@ -17,20 +17,25 @@
   #manche { position:relative; margin:24px auto 24px; width:96%; max-width:1360px; height:clamp(220px,40vw,340px); background:#463214; border-radius:12px; overflow:hidden;}
   .fret { position:absolute; top:0; bottom:0; width:2px; background:#b48c5a;}
   .string {position:absolute; left:0; right:0; height:2px; background: #d4b075;}
+  .dot { position: absolute; width:14px; height:14px; background: #ecc759; border-radius: 50%; left:50%; transform: translateX(-50%); top:48%; }
+  .dot.double::after { content: ""; position: absolute; width:14px; height:14px; background: #ecc759; border-radius:50%; top:-18px; left:0;}
+  .fretNumber {
+    position: absolute; bottom: 2px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px; color: #b8905b; background: rgba(0,0,0,.25);
+    padding: 2px 5px; border-radius: 6px;
+  }
   .noteManche {position:absolute; width:24px; height:24px; border-radius:50%; background:#e7d6b1; color:#33220e; font-size:13px;font-weight:700; display:flex;align-items:center;justify-content:center;}
   .noteManche.tonic {background:#ffecb3;}
   .noteManche.diese {background:#3378f4;}
   .noteManche.bemol {background:#e55151;}
-  #chosenScales { margin: 18px auto 12px; max-width: 900px; background: #191927; border-radius: 12px; padding: 14px 10px; box-shadow: 0 0 14px #0004;}
-  #chosenScales ul { padding-left: 18px; }
-  #chosenScales strong { color: #ffb300;}
   @media (max-width: 600px) { .toolbar {flex-direction:column;} #cercle {width:220px;height:220px;} #manche{height:180px;} }
 </style>
 </head>
 <body>
 <header>
-  <h1>Cercle des quintes & manche — toutes gammes et modes</h1>
-  <div>Clique les notes du cercle, consulte <strong>les gammes & modes conseillés</strong>, choisis et affiche sur le manche !</div>
+  <h1>Cercle des quintes & manche — gammes et repères réels</h1>
+  <div>Clique les notes du cercle, sélectionne une gamme pour l'afficher sur le manche (avec points & numéros) !</div>
 </header>
 
 <div class="toolbar">
@@ -43,20 +48,16 @@
 <div id="cercleWrapper">
   <div id="cercle" aria-label="Cercle des quintes"></div>
 </div>
-<div id="chosenScales">
-  <strong>Gammes & modes conseillés :</strong>
-  <ul id="recommendedScales"></ul>
-</div>
 <div id="selectedScale" aria-live="polite"></div>
 <div id="manche" aria-label="Manche de guitare"></div>
-<footer>v4 — auto-suggestion, exhaustif</footer>
+<footer>v4 — repères, gammes, filtres</footer>
 
 <div id="modalHelp" style="display:none;position:fixed;top:20vh;left:50%;transform:translateX(-50%);background:rgba(30,30,44,0.98);color:#eee;padding:28px 14px;box-shadow:0 0 18px #111;z-index:10;border-radius:16px;">
   <strong>Aide:</strong><br/>
-  - Clique notes du cercle, vois les gammes/modes proposés<br/>
-  - Menu pour afficher une gamme sur le manche<br/>
-  - Ajuste manche frettes et accordage (barre du haut)<br/>
-  <br/><button onclick="document.getElementById('modalHelp').style.display = 'none';">Fermer</button>
+  - Clique notes du cercle<br/>
+  - Choisis la gamme à afficher<br/>
+  - Repères du manche visibles (points et numéros)<br/>
+  <br/><button onclick="document.getElementById('modalHelp').style.display='block';">Fermer</button>
 </div>
 
 <script>
@@ -71,7 +72,6 @@ const circleLabels = [
   {label:'A#/Bb',pitch:'A#'}, {label:'F',pitch:'F'}
 ];
 
-// Construction automatique de toutes les gammes et modes majeurs
 function allScales() {
   let all = {};
   const modes = [
@@ -80,29 +80,17 @@ function allScales() {
     {type:'Phrygien',       pattern:[1,2,2,2,1,2,2]},
     {type:'Lydien',         pattern:[2,2,2,1,2,2,1]},
     {type:'Mixolydien',     pattern:[2,2,1,2,2,1,2]},
-    {type:'Aeolien',        pattern:[2,1,2,2,1,2,2]}, // mineur naturel
+    {type:'Aeolien',        pattern:[2,1,2,2,1,2,2]},
     {type:'Locrien',        pattern:[1,2,2,1,2,2,2]}
   ];
-  // Pour chaque tonique chromatique
   SHARP_CHROMA.forEach(root => {
-    // Majeur
-    let scale = [root], i = SHARP_CHROMA.indexOf(root);
-    [2,2,1,2,2,2,1].forEach(intv => { i = (i+intv)%12; scale.push(SHARP_CHROMA[i]); });
-    scale.pop();
-    all[`${root} Majeur`] = scale;
-    // Mineur naturel
-    let mn = [root], j = SHARP_CHROMA.indexOf(root);
-    [2,1,2,2,1,2,2].forEach(intv => { j = (j+intv)%12; mn.push(SHARP_CHROMA[j]); });
-    mn.pop();
-    all[`${root} Mineur naturel`] = mn;
-    // Modes
     modes.forEach(m =>{
       let cur = [root], k = SHARP_CHROMA.indexOf(root);
       m.pattern.forEach(intv => { k = (k+intv)%12; cur.push(SHARP_CHROMA[k]); });
       cur.pop();
       all[`${root} ${m.type}`] = cur;
     });
-    // Pentatoniques majeure
+    // Pentatonique majeure
     let pma = [root], p = SHARP_CHROMA.indexOf(root);
     [2,2,3,2,3].forEach(intv => { p = (p+intv)%12; pma.push(SHARP_CHROMA[p]); });
     pma.pop();
@@ -133,8 +121,6 @@ const defaultTunings = {
 const menuGammes = document.getElementById('menuGammes');
 const manche = document.getElementById('manche');
 const selTuning = document.getElementById('menuTuning');
-const chosenScalesDiv = document.getElementById('chosenScales');
-const recommendedScales = document.getElementById('recommendedScales');
 const selectedScaleDiv = document.getElementById('selectedScale');
 
 for(const k in defaultTunings){
@@ -147,6 +133,7 @@ selTuning.onchange = ()=>{ tuning = [...defaultTunings[selTuning.value]]; drawNe
 
 let frets = 24;
 document.getElementById('nbFrettes').onchange = e=>{ frets = +e.target.value; drawNeck(); };
+
 // == Génération du cercle des quintes + fonction filtre gammes
 const cercle = document.getElementById('cercle');
 function buildCercle(){
@@ -172,99 +159,4 @@ function buildCercle(){
 window.addEventListener('resize', buildCercle);
 buildCercle();
 
-// == Filtrer gammes selon notes du cercle choisies
-function updateGammesFromCircle(){
-  const selectedNotes = Array.from(document.querySelectorAll('.noteCercle.selected'))
-    .map(el => el.dataset.pitch);
-
-  let possibles = [];
-  for (const [name, scale] of Object.entries(gammes)) {
-    const scaleSharp = scale.map(toSharp);
-    const matching = selectedNotes.length>0 && selectedNotes.every(note => scaleSharp.includes(toSharp(note)));
-    if (matching) possibles.push(name);
-  }
-  fillScales(possibles.length ? possibles : ['(aucune compatible)']);
-  showRecommendedScales(possibles, selectedNotes);
-}
-
-// == Remplir le menu des gammes
-function fillScales(list=null){
-  menuGammes.innerHTML = '';
-  let gammesList = list || Object.keys(gammes);
-  gammesList.forEach(gam => {
-    const opt = document.createElement('option');
-    opt.textContent = gam;
-    menuGammes.appendChild(opt);
-  });
-  menuGammes.selectedIndex = 0;
-  drawNeck();
-}
-menuGammes.onchange = drawNeck;
-
-// == Affichage liste gammes conseillées (onglet)
-function showRecommendedScales(possibles, selectedNotes){
-  recommendedScales.innerHTML = '';
-  if(selectedNotes.length === 0){
-    recommendedScales.innerHTML = '<li>Aucune sélection. Clique des notes sur le cercle.</li>';
-    return;
-  }
-  if(possibles.length === 0){
-    recommendedScales.innerHTML = '<li>Aucune gamme ou mode compatible trouvé.</li>';
-    return;
-  }
-  possibles.forEach(name => {
-    let scale = gammes[name];
-    let item = document.createElement('li');
-    item.innerHTML = `<strong>${name}</strong> : <span>${scale.join(', ')}</span>`;
-    recommendedScales.appendChild(item);
-  });
-}
-
-function drawNeck(){
-  manche.innerHTML = '';
-  const scaleName = menuGammes.value;
-  const scale = gammes[scaleName] || [];
-  for(let i=0; i<=frets; i++){
-    let f = document.createElement('div');
-    f.className = 'fret';
-    f.style.left = (i/(frets+1))*100+'%';
-    manche.appendChild(f);
-  }
-  tuning.forEach((t, i)=>{
-    let s = document.createElement('div');
-    s.className = 'string';
-    let spacing = manche.clientHeight/(tuning.length+1);
-    s.style.top = ((i+1)*spacing)+'px';
-    manche.appendChild(s);
-  });
-  let fretWidth = 100/(frets+1);
-  let h = manche.clientHeight;
-  let spacing = h/(tuning.length+1);
-  tuning.forEach((tune, s)=>{
-    const openIndex = SHARP_CHROMA.indexOf(tune);
-    for(let f=0; f<=frets; f++){
-      const note = SHARP_CHROMA[(openIndex+f)%12];
-      const displayNote = scale.includes(note)||scale.includes(Object.keys(FLAT_TO_SHARP).find(b=>FLAT_TO_SHARP[b]===note));
-      if(displayNote){
-        let el = document.createElement('div');
-        el.className = 'noteManche';
-        el.textContent = note;
-        if(note.includes('#'))el.classList.add('diese');
-        if(['Bb','Eb','Ab','Db','Gb'].includes(note))el.classList.add('bemol');
-        if(note===scale[0])el.classList.add('tonic');
-        el.style.left = `${(f*fretWidth)+fretWidth/2}%`;
-        el.style.top = `${(s+1)*spacing}px`;
-        manche.appendChild(el);
-      }
-    }
-  });
-  selectedScaleDiv.textContent = `${scaleName} — Notes : ${scale.join('  ')}`;
-}
-
-document.getElementById('helpBtn').onclick = ()=>{ document.getElementById('modalHelp').style.display='block'; };
-
-fillScales();
-drawNeck();
-</script>
-</body>
-</html>
+// ==
