@@ -74,9 +74,6 @@
 const SHARP_CHROMA = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FLAT_TO_SHARP = { 'Cb':'B','Fb':'E','E#':'F','B#':'C', 'Bb':'A#','Eb':'D#','Ab':'G#','Db':'C#','Gb':'F#'};
 function toSharp(n){ return FLAT_TO_SHARP[n] || n; }
-const circleNotes = [
-  'C','G','D','A','E','B','F#','C#','G#','D#','A#','F'
-];
 const circleLabels = [
   {label:'C',pitch:'C'},
   {label:'G',pitch:'G'},
@@ -99,15 +96,18 @@ const defaultTunings = {
   'Guitare 7 cordes': ['B','E','A','D','G','B','E'],
   'Guitare Open G': ['D','G','D','G','B','D']
 };
-// == Gammes de base (+ editable, + modes)
+
 let gammes = {
   'C Majeur': ['C','D','E','F','G','A','B'],
   'A Mineur naturel': ['A','B','C','D','E','F','G'],
   'C Blues': ['C','Eb','F','F#','G','Bb'],
-  'G Pentatonique majeure': ['G','A','B','D','E']
+  'G Pentatonique majeure': ['G','A','B','D','E'],
+  'F Majeur': ['F','G','A','Bb','C','D','E'],
+  'G Mixolydien': ['G','A','B','C','D','E','F']
+  // Ajoute autant de gammes et modes que souhaité ici !
 };
 const modes = ["Ionien", "Dorien", "Phrygien", "Lydien", "Mixolydien", "Aeolien", "Locrien"];
-// == UI
+
 const menuGammes = document.getElementById('menuGammes');
 const manche = document.getElementById('manche');
 const selTuning = document.getElementById('menuTuning');
@@ -124,11 +124,9 @@ for(const k in defaultTunings){
 let tuning = [...defaultTunings['Guitare Standard']];
 selTuning.onchange = ()=>{ tuning = [...defaultTunings[selTuning.value]]; drawNeck(); };
 
-// == Nombre de frettes dynamique
 let frets = 24;
 document.getElementById('nbFrettes').onchange = e=>{ frets = +e.target.value; drawNeck(); };
 
-// == Mode utilisateur (simplifié)
 let userMode='debutant';
 userModeEl.onchange = e=>{ userMode = e.target.value; drawNeck(); };
 
@@ -143,20 +141,20 @@ document.getElementById('addScaleBtn').onclick = () => {
 };
 
 // == Remplir le menu des gammes
-function fillScales(){
+function fillScales(list=null){
   menuGammes.innerHTML = '';
-  for(const g in gammes){
+  let gammesList = list || Object.keys(gammes);
+  gammesList.forEach(gam => {
     const opt = document.createElement('option');
-    opt.textContent = g;
+    opt.textContent = gam;
     menuGammes.appendChild(opt);
-  }
+  });
   menuGammes.selectedIndex = 0;
   drawNeck();
 }
 menuGammes.onchange = drawNeck;
-fillScales();
 
-// == Génération du cercle des quintes
+// == Génération du cercle des quintes + fonction filtre gammes
 const cercle = document.getElementById('cercle');
 function buildCercle(){
   cercle.innerHTML='';
@@ -171,31 +169,28 @@ function buildCercle(){
     const radius = Math.min(w,h)*0.39;
     el.style.left = `${cx + Math.cos(angle)*radius - 20}px`;
     el.style.top  = `${cy + Math.sin(angle)*radius - 20}px`;
-    el.onclick = ()=>{ el.classList.toggle('selected'); updateGammesFromCircle(); };
+    el.onclick = () => {
+      el.classList.toggle('selected');
+      updateGammesFromCircle();
+    };
     cercle.appendChild(el);
   });
 }
 window.addEventListener('resize', buildCercle);
 buildCercle();
 
-// == Filtrer gammes selon notes du cercle
+// == Filtrer gammes selon notes du cercle choisies
 function updateGammesFromCircle(){
-  const active = [...document.querySelectorAll('.noteCercle.selected')].map(el=>el.dataset.pitch);
-  menuGammes.innerHTML = '';
-  let found = [];
-  for(const [name,scale] of Object.entries(gammes)){
+  const selectedNotes = Array.from(document.querySelectorAll('.noteCercle.selected'))
+    .map(el => el.dataset.pitch);
+
+  let possibles = [];
+  for (const [name, scale] of Object.entries(gammes)) {
     const scaleSharp = scale.map(toSharp);
-    const ok = active.every(n => scaleSharp.includes(toSharp(n)));
-    if(ok) found.push(name);
+    const matching = selectedNotes.every(note => scaleSharp.includes(toSharp(note)));
+    if (matching) possibles.push(name);
   }
-  if(!found.length) found = ['(aucune gamme trouvée)'];
-  found.forEach(name=>{
-    let opt = document.createElement('option');
-    opt.textContent = name;
-    menuGammes.appendChild(opt);
-  });
-  menuGammes.selectedIndex = 0;
-  drawNeck();
+  fillScales(possibles.length ? possibles : ['(aucune compatible)']);
 }
 
 // == Générer le manche + notes/intervalles/degrés
@@ -211,7 +206,6 @@ function drawNeck(){
     f.style.left = (i/(frets+1))*100+'%';
     manche.appendChild(f);
   }
-  // Cordes
   tuning.forEach((t, i)=>{
     let s = document.createElement('div');
     s.className = 'string';
@@ -246,14 +240,12 @@ function drawNeck(){
     }
   });
 
-  // Human-friendly scale details
   selectedScaleDiv.textContent = `${scaleName} — Notes : ${scale.join('  ')}`;
-  // Mini diagrammes d'accords selon gamme/exemple
+
   chordDiagrams.innerHTML = `<strong>Diagrammes d'accords typiques pour "${scaleName}" (démo):</strong>
     <span style="display:inline-block;background:#333;color:#ffb;padding:6px;margin:5px;border-radius:12px;">C: x32010</span>
     <span style="display:inline-block;background:#333;color:#ffb;padding:6px;margin:5px;border-radius:12px;">G: 320003</span>
     <span style="display:inline-block;background:#333;color:#ffb;padding:6px;margin:5px;border-radius:12px;">F: 133211</span>
-    <!-- Remplace par les positions réelles selon la gamme choisie -->
   `;
 }
 
@@ -279,6 +271,7 @@ document.getElementById('shareBtn').onclick = ()=>{
   alert("URL de partage copiée !\n" + urlShare);
 };
 
+fillScales();
 drawNeck();
 </script>
 </body>
