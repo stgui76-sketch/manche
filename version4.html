@@ -3,218 +3,160 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cercle des Quintes – Version 4 complète</title>
+<title>Manche Interactif + Cercle des Quintes</title>
 <style>
-:root {
-  --bg-light: linear-gradient(135deg,#f4f6f9,#dbe4f3);
-  --bg-dark: linear-gradient(135deg,#191a1f,#24262b);
-}
 body {
-  margin:0;
-  font-family:Poppins, sans-serif;
-  background:var(--bg-light);
-  color:#222;
-  transition:.4s;
-}
-body.dark {
-  background:var(--bg-dark);
-  color:#eee;
+  margin: 0; font-family: Arial, sans-serif;
+  background: var(--bg, #f2f3f5); color: var(--fg, #222);
+  transition: background .3s, color .3s;
 }
 header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:15px 30px;
-  backdrop-filter:blur(6px);
-  background:rgba(255,255,255,0.15);
+  background: var(--panel,#ffffffbb); backdrop-filter: blur(6px);
+  padding: 1em; display:flex; justify-content: space-around;
+  align-items:center; box-shadow:0 2px 4px #0001;
 }
-button {
-  border:none;
-  padding:10px 16px;
-  border-radius:10px;
-  background:rgba(255,255,255,0.25);
-  color:inherit;
-  cursor:pointer;
+button, select {padding: .3em .6em; border-radius: 6px;}
+main {display:flex; flex-direction:column; align-items:center; padding:1em;}
+section {display:none; width:100%; max-width:1000px;}
+section.active {display:block;}
+#fretboard {
+  display:grid; grid-template-columns: repeat(13,1fr);
+  gap:2px; background:#ccc; padding:10px; border-radius:8px;
 }
-button:hover {
-  background:rgba(0,0,0,0.15);
+.string{display:flex;}
+.note{
+  flex:1; background:#fff; border-radius:50%;
+  margin:2px; text-align:center; line-height:28px; font-size:12px;
+  cursor:pointer; transition:.2s;
 }
-.container {
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  margin:20px auto;
-  max-width:1200px;
-  width:95%;
+.note.active{background:#4caf50;color:white;}
+/* circle of fifths */
+#circle-container {
+  position: relative; width: 380px; height: 380px; margin:1em auto;
 }
-.card {
-  background:rgba(255,255,255,0.25);
-  border-radius:20px;
-  backdrop-filter:blur(14px);
-  padding:25px;
-  margin:20px 0;
-  box-shadow:0 8px 20px rgba(0,0,0,0.15);
-  width:100%;
-  text-align:center;
-}
-body.dark .card {
-  background:rgba(60,60,70,0.4);
-  box-shadow:0 8px 25px rgba(0,0,0,0.7);
-}
-.divider {
-  width:50%;
-  height:8px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);
-  border-radius:30px;
-}
-
-/* SVG Circle */
-svg {
-  width:440px; height:440px;
-}
-.note {
-  text-anchor:middle;
-  dominant-baseline:middle;
-  font-size:16px;
-  cursor:pointer;
+.key {
+  position: absolute; width: 50px; height: 50px; border-radius: 50%;
+  line-height: 50px; text-align: center; background:#eee; cursor:pointer;
   transition:.2s;
 }
-.note:hover { fill:gold; }
-
-/* Fretboard */
-.fretboard {
-  display:grid;
-  grid-template-columns:repeat(13,1fr);
-  gap:2px;
-  background:rgba(255,255,255,0.15);
-  border-radius:10px;
-}
-.fret {
-  padding:10px 0;
-  border-right:1px solid rgba(0,0,0,0.1);
-  font-size:0.8em;
-}
-.highlight { background:rgba(255,215,0,0.5); font-weight:bold; }
-
-/* Modal */
-.modal {display:none;position:fixed;z-index:10;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);}
-.modal-content {
-  position:relative;
-  margin:5% auto;
-  background:rgba(255,255,255,0.25);
-  backdrop-filter:blur(12px);
-  border-radius:20px;
-  padding:30px;
-  width:90%;
-  max-width:700px;
-}
-.modal .close {position:absolute;top:10px;right:20px;font-size:24px;cursor:pointer;}
+.key:hover,.key.active {background:#4caf50;color:#fff;}
+/* theme toggle */
+.dark {--bg:#1a1a1a; --fg:#eee; --panel:#222c;}
 </style>
 </head>
 <body>
 <header>
-  <h2>Cercle des Quintes – Guitare</h2>
   <div>
-    <button id="themeToggle">☀️/🌙</button>
-    <button id="infoBtn">❓ Explications</button>
+    Instrument:
+    <select id="instrument">
+      <option>Guitare</option><option>Basse</option><option>Ukulélé</option>
+    </select>
+    Frettes: <input type="number" id="frets" min="5" max="24" value="12">
+    <button id="refresh">Actualiser</button>
+  </div>
+  <div>
+    <button id="btnFretboard">Manche</button>
+    <button id="btnCircle">Cercle des Quintes</button>
+    <button id="btnHelp">❓</button>
+    <button id="toggleTheme">🌙/☀️</button>
   </div>
 </header>
 
-<div class="container">
+<main>
+  <section id="secFretboard" class="active">
+    <div id="fretboard"></div>
+  </section>
 
-  <div class="card">
-    <svg id="circleSVG" viewBox="0 0 400 400">
-      <circle cx="200" cy="200" r="180" fill="none" stroke="#aaa" stroke-width="3"/>
-      <g id="circle"></g>
-    </svg>
-  </div>
+  <section id="secCircle">
+    <div id="circle-container"></div>
+  </section>
 
-  <div class="divider"></div>
-
-  <div class="card">
-    <h3>Manche de guitare interactif</h3>
-    <div id="fretboard" class="fretboard"></div>
-  </div>
-
-</div>
-
-<div id="modal" class="modal">
-  <div class="modal-content">
-    <span class="close" id="closeModal">&times;</span>
-    <h2>Explications : Le Cercle des Quintes</h2>
-    <p>Chaque note représente une tonalité majeure et sa relative mineure. 
-    Cliquer sur une tonalité met en évidence les notes de la gamme sur le manche de guitare.</p>
-    <p>Utilise ce cercle pour naviguer les relations harmoniques (I‑IV‑V, armatures, transpositions)</p>
-  </div>
-</div>
+  <section id="secHelp">
+    <h2>Explications</h2>
+    <p>Le cercle des quintes montre la relation entre tonalités majeures et leurs relatives mineures.
+      En cliquant sur une tonalité, les notes de sa gamme majeure s’affichent sur le manche.
+      Utilise ce repère pour comprendre les enchaînements d’accords I-IV-V et les armatures.</p>
+  </section>
+</main>
 
 <script>
-const majorKeys = ["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"];
-const chromatic = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const scalePattern = [2,2,1,2,2,2,1];
+/* --- THEMING --- */
+const tbtn=document.getElementById('toggleTheme');
+tbtn.onclick=()=>document.body.classList.toggle('dark');
 
-// Draw circle
-const circleGroup = document.getElementById("circle");
-majorKeys.forEach((key, i) => {
-  const angle = (i / majorKeys.length) * 2 * Math.PI - Math.PI/2;
-  const x = 200 + 150 * Math.cos(angle);
-  const y = 200 + 150 * Math.sin(angle);
-  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  text.setAttribute("x", x);
-  text.setAttribute("y", y);
-  text.textContent = key;
-  text.classList.add("note");
-  text.onclick = () => selectKey(key);
-  circleGroup.appendChild(text);
-});
+/* --- NAVIGATION --- */
+const sF=document.getElementById("secFretboard"),
+      sC=document.getElementById("secCircle"),
+      sH=document.getElementById("secHelp");
+document.getElementById("btnFretboard").onclick=()=>{sF.classList.add("active");sC.classList.remove("active");sH.classList.remove("active");}
+document.getElementById("btnCircle").onclick=()=>{sC.classList.add("active");sF.classList.remove("active");sH.classList.remove("active");}
+document.getElementById("btnHelp").onclick=()=>{sH.classList.add("active");sC.classList.remove("active");sF.classList.remove("active");}
 
-// Build fretboard
-const fretboard = document.getElementById('fretboard');
-const tuning = ["E","B","G","D","A","E"];
-for (let s = 0; s < tuning.length; s++) {
-  for (let f = 0; f < 13; f++) {
-    const div = document.createElement("div");
-    div.className="fret";
-    div.dataset.string=s; div.dataset.fret=f;
-    fretboard.appendChild(div);
+/* --- MANCHE --- */
+const fretboard=document.getElementById("fretboard");
+const chrom=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+let tuning=["E","B","G","D","A","E"];
+function renderFretboard(){
+  fretboard.innerHTML="";
+  for(let s=0;s<tuning.length;s++){
+    const string=document.createElement("div");
+    string.className="string";
+    let start=chrom.indexOf(tuning[s]);
+    for(let f=0;f<=parseInt(document.getElementById("frets").value);f++){
+      const noteDiv=document.createElement("div");
+      noteDiv.className="note";
+      const note=chrom[(start+f)%12];
+      noteDiv.textContent=note;
+      string.appendChild(noteDiv);
+    }
+    fretboard.appendChild(string);
   }
 }
+renderFretboard();
+document.getElementById("refresh").onclick=renderFretboard;
 
-function selectKey(key){
-  const scale = buildScale(key);
-  highlightFrets(scale);
-  alert(`Tonalité ${key} majeure : ${scale.join(" - ")}`);
-}
-
-function buildScale(root){
-  let idx = chromatic.indexOf(root);
-  const notes=[root];
-  for (const step of scalePattern){
-    idx=(idx+step)%12;
-    notes.push(chromatic[idx]);
-  }
-  return notes;
-}
-
-function noteAt(string, fret){
-  const idx = (chromatic.indexOf(tuning[string]) + fret) % 12;
-  return chromatic[idx];
-}
-
-function highlightFrets(scale){
-  document.querySelectorAll(".fret").forEach(f=>{
-    f.classList.remove("highlight");
-    const note = noteAt(f.dataset.string, parseInt(f.dataset.fret));
-    if(scale.includes(note)){ f.classList.add("highlight"); }
+function displayScale(scale){
+  document.querySelectorAll('.note').forEach(n=>{
+    n.classList.toggle('active', scale.includes(n.textContent));
   });
 }
 
-document.getElementById("themeToggle").onclick = ()=>document.body.classList.toggle("dark");
-
-const modal = document.getElementById("modal");
-document.getElementById("infoBtn").onclick = ()=>modal.style.display="block";
-document.getElementById("closeModal").onclick = ()=>modal.style.display="none";
-window.onclick=e=>{if(e.target==modal)modal.style.display="none";}
+/* --- CERCLE DES QUINTES --- */
+const container=document.getElementById("circle-container");
+const keys=["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"];
+function drawCircle(){
+  const r=150;
+  for(let i=0;i<keys.length;i++){
+    const keyDiv=document.createElement('div');
+    keyDiv.className='key';
+    const angle=(i/keys.length)*2*Math.PI;
+    const x=Math.cos(angle-Math.PI/2)*r+r+40;
+    const y=Math.sin(angle-Math.PI/2)*r+r+40;
+    keyDiv.style.left=x+'px';
+    keyDiv.style.top=y+'px';
+    keyDiv.textContent=keys[i];
+    keyDiv.onclick=()=>selectKey(keys[i],keyDiv);
+    container.appendChild(keyDiv);
+  }
+}
+drawCircle();
+function selectKey(key,keyDiv){
+  document.querySelectorAll('.key').forEach(k=>k.classList.remove('active'));
+  keyDiv.classList.add('active');
+  updateFretboardFromCircle(key);
+}
+function updateFretboardFromCircle(key){
+  const pattern=[2,2,1,2,2,2,1];
+  let pos=chrom.indexOf(key.includes('b')?flatToSharp(key):key);
+  if(pos<0)pos=0;
+  const scale=[chrom[pos]];
+  pattern.forEach(st=>{pos=(pos+st)%12;scale.push(chrom[pos]);});
+  displayScale(scale);
+}
+function flatToSharp(note){
+  const map={"Db":"C#","Eb":"D#","Gb":"F#","Ab":"G#","Bb":"A#"};
+  return map[note]||note;
+}
 </script>
 </body>
 </html>
